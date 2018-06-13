@@ -1,0 +1,175 @@
+---
+title: "Data 621 Hw1"
+author: "Vivian Kong"
+date: "6/5/2018"
+output:
+  html_document: default
+  word_document: default
+---
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(plyr)
+library(stringr)
+library(imputeTS)
+library(DataExplorer)
+library(cbanalysis)
+library(gvlma)
+require(knitr)
+require(lubridate)
+
+moneyball <- read.csv("https://raw.githubusercontent.com/xkong100/data-621/master/Hw1/moneyball-training-data.csv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = c("", "NA"))
+kable(head(moneyball))
+nrow(moneyball)
+ncol(moneyball)
+
+cleanNames <- function(df) {
+    name_list <- names(df)
+    name_list <- gsub("TEAM_", "", name_list)
+    names(df) <- name_list
+    df
+}
+
+moneyball <- cleanNames(moneyball)
+kable(head(moneyball))
+```
+There are 2276 rows and 16 columns.
+
+```{r}
+summary(moneyball)
+attach(moneyball)
+sd(TARGET_WINS)
+sd(BATTING_H)
+sd(BATTING_2B)
+sd(BATTING_3B)
+sd(BATTING_HR)
+sd(BATTING_BB)
+sd(BATTING_SO,na.rm = TRUE)
+sd(BASERUN_SB,na.rm = TRUE)
+sd(BASERUN_CS,na.rm = TRUE)
+sd(BATTING_HBP,na.rm = TRUE)
+sd(PITCHING_H)
+sd(PITCHING_HR)
+sd(PITCHING_BB)
+sd(PITCHING_SO,na.rm = TRUE)
+sd(FIELDING_E)
+sd(FIELDING_DP, na.rm =TRUE)
+
+
+
+
+boxplot(TARGET_WINS)
+boxplot(BATTING_H)
+boxplot(BATTING_2B)
+boxplot(BATTING_3B)
+boxplot(BATTING_HR)
+boxplot(BATTING_BB)
+boxplot(BATTING_SO,na.rm = TRUE)
+boxplot(BASERUN_SB,na.rm = TRUE)
+boxplot(BASERUN_CS,na.rm = TRUE)
+boxplot(BATTING_HBP,na.rm = TRUE)
+boxplot(PITCHING_H)
+boxplot(PITCHING_HR)
+boxplot(PITCHING_BB)
+boxplot(PITCHING_SO,na.rm = TRUE)
+boxplot(FIELDING_E)
+boxplot(FIELDING_DP, na.rm =TRUE)
+
+
+
+```
+
+
+```{r}
+plot_histogram(moneyball)
+plot_missing(moneyball)
+```
+
+```{r}
+moneyball[is.na(moneyball$BATTING_SO),"BATTING_SO"] <- median(na.omit(moneyball$BATTING_SO))
+moneyball[is.na(moneyball$PITCHING_SO),"PITCHING_SO"] <- median(na.omit(moneyball$PITCHING_SO))
+moneyball[is.na(moneyball$BASERUN_SB),"BASERUN_SB"] <- median(na.omit(moneyball$BASERUN_SB))
+moneyball[is.na(moneyball$FIELDING_DP),"FIELDING_DP"] <- median(na.omit(moneyball$FIELDING_DP))
+moneyball[is.na(moneyball$BASERUN_CS),"BASERUN_CS"] <- median(na.omit(moneyball$BASERUN_CS))
+plot_missing(moneyball)
+```
+
+```{r}
+# By observing the data, I see that TEAM_BATTING_H is the sum of 1B, 2B, 3B, HR, to find 1B and analyze them individually, we can find 1B.
+attach(moneyball)
+moneyball<- moneyball %>% mutate(BATTING_1B=BATTING_H-BATTING_2B-BATTING_3B,Total_batting=1*BATTING_1B+2*BATTING_2B+3*BATTING_3B+4*BATTING_HR) %>% dplyr ::select(-BATTING_H,-BATTING_HBP,-INDEX)
+kable(head(moneyball))
+
+cor(moneyball)
+
+```
+
+
+Model 1: Backwards Selection
+
+```{r}
+m1 <-lm(TARGET_WINS~.,data=moneyball)
+plot(m1)
+summary(m1)
+```
+Model 2 Get rid of "Total_Batting" for now
+
+
+```{r}
+m2 <- update(m1,~.-Total_batting)
+plot(m2)
+summary(m2)
+
+```
+
+
+
+
+
+Model 3: get rid of variables are not statistically significant.
+
+```{r}
+m3<-update(m1,~.-BATTING_HR-BATTING_BB-BASERUN_CS-PITCHING_HR-PITCHING_BB)
+plot(m3)
+
+summary(m3)
+```
+Model4: Keep getting rid of the insignificant variable.
+
+```{r}
+m4 <-update(m3,~.-BATTING_2B-PITCHING_H)
+plot(m4)
+summary(m4)
+```
+
+
+Evaluation by using our model
+
+```{r}
+evaluation <- read.csv("https://raw.githubusercontent.com/xkong100/data-621/master/Hw1/moneyball-evaluation-data.csv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = c("", "NA"))
+kable(head(evaluation))
+
+evaluation <- cleanNames(evaluation)
+kable(head(evaluation))
+
+plot_missing(evaluation)
+evaluation[is.na(evaluation$BATTING_SO),"BATTING_SO"] <- median(na.omit(evaluation$BATTING_SO))
+evaluation[is.na(evaluation$PITCHING_SO),"PITCHING_SO"] <- median(na.omit(evaluation$PITCHING_SO))
+evaluation[is.na(evaluation$BASERUN_SB),"BASERUN_SB"] <- median(na.omit(evaluation$BASERUN_SB))
+evaluation[is.na(evaluation$FIELDING_DP),"FIELDING_DP"] <- median(na.omit(evaluation$FIELDING_DP))
+evaluation[is.na(evaluation$BASERUN_CS),"BASERUN_CS"] <- median(na.omit(evaluation$BASERUN_CS))
+plot_missing(evaluation)
+
+attach(evaluation)
+evaluation<- evaluation %>% mutate(BATTING_1B=BATTING_H-BATTING_2B-BATTING_3B,Total_batting=1*BATTING_1B+2*BATTING_2B+3*BATTING_3B+4*BATTING_HR) %>% dplyr ::select(-BATTING_H,-BATTING_HBP,-INDEX)
+kable(head(evaluation))
+
+
+
+pred <- predict(m1, evaluation,type='response')
+
+final <- data.frame(cbind(pred, moneyball$TARGET_WINS))
+kable(head(final))
+```
