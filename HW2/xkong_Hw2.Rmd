@@ -1,0 +1,172 @@
+---
+title: "Xkong_HW2"
+author: "Vivian Kong"
+date: "6/16/2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+1. Read data
+```{r}
+score_class<- read.csv("https://raw.githubusercontent.com/xkong100/data-621/master/HW2/classification-output-data.csv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = c("", "NA"))
+head(score_class)
+```
+
+2. confusion Matrix
+
+```{r}
+t <- table(score_class$class, score_class$scored.class)
+colnames(t) <- c("Real Negative", "Real Positive")
+rownames(t) <- c("Model Negative", "Model Positive")
+t
+```
+The columns represent for Scored.Class which represent the predicted classes, The rows represents for the class which represent the predicted classes. "1=positive", "0=negative"
+
+3. Accuracy
+```{r}
+accuracy <- function(data){
+  t <- table(data$class, data$scored.class)
+  tn<-t[1,1]
+  tp<-t[2,2]
+  fn<-t[2,1]
+  fp<-t[1,2]
+acc <- (tp+tn)/ (tp+fp+tn+fn)
+
+return (acc)
+
+}
+a<-accuracy(score_class)
+a
+```
+
+
+4. Classification Error Rate
+```{r}
+error_rate <- function(data){
+  t <- table(data$class, data$scored.class)
+  tn<-t[1,1]
+  tp<-t[2,2]
+  fn<-t[2,1]
+  fp<-t[1,2]
+error <- (fp+fn)/ (tp+fp+tn+fn)
+
+return (error)
+
+}
+e<-error_rate(score_class)
+e
+sum<-accuracy(score_class)+error_rate(score_class)
+sum
+```
+
+5. Precision
+```{r}
+precision <- function(data){
+  t <- table(data$class, data$scored.class)
+  tn<-t[1,1]
+  tp<-t[2,2]
+  fn<-t[2,1]
+  fp<-t[1,2]
+pre <- (tp)/ (tp+fp)
+
+return (pre)
+
+}
+pre<-precision(score_class)
+pre
+```
+
+6. Sensitivity
+```{r}
+sensitivity <- function(data){
+  t <- as.data.frame(table(Actual=data$class,Predicted= data$scored.class))
+return(t$Freq[4]/(t$Freq[4]+t$Freq[2]))
+
+}
+sen<-sensitivity(score_class)
+sen
+```
+
+7. Specificity
+
+```{r}
+specificity <- function(data){
+  t <- as.data.frame(table(Actual=data$class,Predicted= data$scored.class))
+return(t$Freq[1]/(t$Freq[1]+t$Freq[3]))
+
+}
+sp<-specificity(score_class)
+sp
+```
+
+8. F1 Score
+
+```{r}
+F1_Score <- function(data){
+   t <- table(data$class, data$scored.class)
+  tn<-t[1,1]
+  tp<-t[2,2]
+  fn<-t[2,1]
+  fp<-t[1,2]
+  
+  pre <- (tp)/ (tp+fp)
+  sen <- (tp)/ (tp+fn)
+  F1 <- (2*pre*sen)/(pre+sen)
+  return(F1)
+}
+F1<- F1_Score(score_class)
+F1
+```
+
+9. Let $P=Precision\ , S=Sensitivity$, Since $0<p<1$ and $0<s<1$, we know that $p(s-1)<0\ and\ s(p-1)<0$. In this case, we can find that $ps<p,\ sp<s$. $ps+sp<p+s,\ 2ps<p+s,\ \frac{2ps}{p+s}<1$. Since $p>0,\ s>0,\ \frac{2ps}{p+s}>0$.
+
+In conclusion, $0<F1 Score<1$. 
+
+10. ROC Curve and AUC curve
+
+```{r}
+library(ggplot2)
+ROC <- function(data)
+{
+  data1 = data
+  thresholds <- seq(0,1,0.01)
+  Y <- c()
+  X <- c()
+  for (threshod in thresholds) {
+    data1$scored.class <- ifelse(data1$scored.probability > threshod,1,0)
+    X <- append(X,1-specificity(data1))
+    Y <- append(Y,sensitivity(data1))
+    }
+  df <- data.frame(X=X,Y=Y)
+  df <- na.omit(df)
+  g <- ggplot(df,aes(X,Y)) + geom_line() + ggtitle('ROC Curve') +
+    xlab('Specificity') + ylab('Sensitivity')
+  height = (df$Y[-1]+df$Y[-length(df$Y)])/2
+  width = -diff(df$X)
+  area = sum(height*width)
+  return(list(Plot =g,AUC = area))
+}
+r <-ROC(score_class)
+r
+```
+
+
+11. Matrix 
+```{r}
+list(accuracy=a, error_rate=e, precision=pre, sensitivity=sen, specificity=sp, F1=F1, Auc= r$AUC)
+```
+
+12. Investigate the "Caret" package
+```{r}
+library(caret)
+confusionMatrix(as.factor(score_class$scored.class), as.factor(score_class$class), positive = "1")
+```
+13. Investigate the "pROC" package
+```{r}
+library(pROC)
+
+roc <- roc(score_class$class, score_class$scored.probability, plot=T, asp=NA, legacy.axes=T, main="ROC curve", ret="tp", col="blue")
+
+roc["auc"]
+
+```
