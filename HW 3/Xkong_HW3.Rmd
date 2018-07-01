@@ -1,0 +1,252 @@
+---
+title: "HW 3"
+author: "Vivian Kong"
+date: "6/21/2018"
+output: html_document
+---
+
+```{r}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(plyr)
+library(stringr)
+library(DataExplorer)
+library(cbanalysis)
+library(gvlma)
+library(stargazer)
+library(knitr)
+
+crime <- read.csv("https://raw.githubusercontent.com/xkong100/data-621/master/HW%203/crime-training-data.csv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = c("", "NA"))
+head(crime)
+nrow(crime)
+ncol(crime)
+plot_missing(crime)
+summary(crime)
+s<- stargazer(crime,type="text", title="Results", align=TRUE)
+
+plot_histogram(crime)
+cor(crime)
+pairs(crime)
+
+library(moments)
+
+skewness(crime)
+
+
+
+d1 <- density(crime$target)
+plot(d1, main="Density of the median crime rate")
+polygon(d1,col="red")
+
+d2 <- density(crime$indus)
+plot(d2, main="Density of the non-retail business")
+polygon(d2,col="blue")
+
+d3 <- density(crime$nox)
+plot(d3, main="Density of nitrogen oxides concentration")
+polygon(d3,col="yellow")
+
+d4 <- density(crime$age)
+plot(d4, main="Density of proportion of owner-occupied units prior to 1940")
+polygon(d4,col="pink")
+
+d5 <- density(crime$dis)
+plot(d5, main="Density of the weighted mean of distance to employment center")
+polygon(d5,col="green")
+
+d6 <- density(crime$tax)
+plot(d6, main="Density of full-value property tax rate")
+polygon(d6,col="purple")
+
+boxplot(crime$indus,col="blue")
+boxplot(crime$nox, col="yellow")
+boxplot(crime$age, col="pink")
+boxplot(crime$dis, col="green")
+boxplot(crime$tax, col="purple")
+```
+
+```{r}
+library(rcompanion)
+
+# age
+plotNormalHistogram(crime$age, main="age")
+qqnorm(crime$age, ylab="age")
+qqline(crime$age,col="red")
+
+T_sqrt_age <- sqrt(101-crime$age)
+plotNormalHistogram(T_sqrt_age)
+qqnorm(T_sqrt_age)
+qqline(T_sqrt_age, col="red")
+skewness(T_sqrt_age)
+
+T_cubic_age <- (101-crime$age)^(1/3)
+plotNormalHistogram(T_cubic_age)
+qqnorm(T_cubic_age)
+qqline(T_cubic_age, col="blue")
+skewness(T_cubic_age)
+
+T_log_age <- log(101-crime$age)
+plotNormalHistogram(T_log_age)
+qqnorm(T_log_age)
+qqline(T_log_age,col="green")
+skewness(T_log_age)
+
+
+# ptratio
+
+plotNormalHistogram(crime$ptratio, main="ptratio")
+qqnorm(crime$ptratio, ylab="ptratio")
+qqline(crime$ptratio,col="red")
+
+T_sqrt_ptratio <- sqrt(23-crime$ptratio)
+plotNormalHistogram(T_sqrt_ptratio)
+qqnorm(T_sqrt_ptratio)
+qqline(T_sqrt_ptratio, col="red")
+skewness(T_sqrt_ptratio)
+
+T_cubic_ptratio <- (23-crime$ptratio)^(1/3)
+plotNormalHistogram(T_cubic_ptratio)
+qqnorm(T_cubic_ptratio)
+qqline(T_cubic_ptratio, col="blue")
+skewness(T_cubic_ptratio)
+
+T_log_ptratio <- log(23-crime$ptratio)
+plotNormalHistogram(T_log_ptratio)
+qqnorm(T_log_ptratio)
+qqline(T_log_ptratio,col="green")
+skewness(T_log_ptratio)
+
+# dis
+
+plotNormalHistogram(crime$dis, main="dis")
+qqnorm(crime$dis, ylab="dis")
+qqline(crime$dis,col="red")
+
+T_sqrt_dis <- sqrt(crime$dis)
+plotNormalHistogram(T_sqrt_dis)
+qqnorm(T_sqrt_dis)
+qqline(T_sqrt_dis, col="red")
+skewness(T_sqrt_dis)
+
+T_cubic_dis <- (crime$dis)^(1/3)
+plotNormalHistogram(T_cubic_dis)
+qqnorm(T_cubic_dis)
+qqline(T_cubic_dis, col="blue")
+skewness(T_cubic_dis)
+
+T_log_dis <- log(crime$dis)
+plotNormalHistogram(T_log_dis)
+qqnorm(T_log_dis)
+qqline(T_log_dis,col="green")
+skewness(T_log_dis)
+
+#lstat
+
+plotNormalHistogram(crime$lstat, main="lstat")
+qqnorm(crime$lstat, ylab="lstat")
+qqline(crime$lstat,col="red")
+
+T_sqrt_lstat <- sqrt(crime$lstat)
+plotNormalHistogram(T_sqrt_lstat)
+qqnorm(T_sqrt_lstat)
+qqline(T_sqrt_lstat, col="red")
+skewness(T_sqrt_lstat)
+
+T_cubic_lstat <- (crime$lstat)^(1/3)
+plotNormalHistogram(T_cubic_lstat)
+qqnorm(T_cubic_lstat)
+qqline(T_cubic_lstat, col="blue")
+skewness(T_cubic_lstat)
+
+T_log_lstat <- log(crime$lstat)
+plotNormalHistogram(T_log_lstat)
+qqnorm(T_log_lstat)
+qqline(T_log_lstat,col="green")
+skewness(T_log_lstat)
+
+attach(crime)
+trans_crime <- crime %>% mutate(sage=T_sqrt_age,lptratio=T_log_ptratio,ldis= T_log_dis, clstat=T_cubic_lstat) %>% dplyr ::select(-age,-ptratio,-dis,-lstat)
+head(trans_crime)
+
+```
+
+```{r}
+
+m1 <-glm(target~., family= "binomial", data=crime)
+plot(m1)
+summary(m1)
+
+
+m2 <- glm(target~indus+nox+age+dis+tax+ptratio+medv+lstat, family="binomial", data=crime)
+plot(m2)
+summary(m2)
+
+
+#transform
+m3 <-glm(target~., family= "binomial", data=trans_crime)
+plot(m3)
+summary(m3)
+
+
+m4 <- glm(target~indus+nox+sage+ldis+tax+lptratio+medv+clstat, family="binomial", data=trans_crime)
+plot(m4)
+summary(m4)
+
+```
+
+```{r}
+# Select models
+
+library(lmtest)
+lrtest(m1, m2, m3, m4)
+
+library(pscl)
+pR2(m1)
+pR2(m2)
+pR2(m3)
+pR2(m4)
+```
+
+```{r}
+
+test_result1 <- predict(m1, newdata=crime,type='response')
+df <- bind_cols(crime, data.frame(scored_target=test_result1))%>% mutate(scored_target=ifelse(scored_target>0.5, 1, 0)) %>% print
+
+library(caret)
+cm1 <- confusionMatrix(as.factor(df$scored_target), as.factor(df$target), positive="1", mode="everything") %>% print
+
+library(pROC)
+curve <- roc(df$target, df$scored_target)
+plot(curve, main="pROC")
+
+
+test_result2 <- predict(m3, newdata=trans_crime,type='response')
+df1 <- bind_cols(trans_crime, data.frame(scored_target=test_result2))%>% mutate(scored_target=ifelse(scored_target>0.5, 1, 0)) %>% print
+
+library(caret)
+cm1 <- confusionMatrix(as.factor(df1$scored_target), as.factor(df1$target), positive="1", mode="everything") %>% print
+
+library(pROC)
+curve1 <- roc(df1$target, df1$scored_target)
+plot(curve1, main="pROC")
+```
+
+
+```{r}
+# Prediction for Test Data
+crime_eval <- read.csv("https://raw.githubusercontent.com/xkong100/data-621/master/HW%203/crime-evaluation-data.csv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = c("", "NA"))
+head(crime_eval)
+summary(crime_eval)
+attach(crime_eval)
+T_sqrt_age1 <-sqrt(101-crime_eval$age)
+T_log_ptratio1 <- log(22.2-crime_eval$ptratio)
+T_log_dis1 <- log(crime_eval$dis)
+T_cubic_lstat1 <- (crime_eval$lstat)^(1/3)
+crime_eval<- crime_eval %>% mutate(sage=T_sqrt_age1,lptratio=T_log_ptratio1,ldis= T_log_dis1, clstat=T_cubic_lstat1) %>% dplyr ::select(-age,-ptratio,-dis,-lstat)
+kable(head(crime_eval))
+
+test_prediction <- predict(m3, newdata= crime_eval, type="response")
+kable(head(bind_cols(crime_eval, data.frame(scored_target= test_prediction)) %>% mutate (scored_target= ifelse(scored_target > 0.5, 1, 0)) %>% print))
+
+```
