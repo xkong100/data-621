@@ -1,0 +1,266 @@
+---
+title: "HW 4"
+author: "Vivian Kong"
+date: "7/2/2018"
+output: html_document
+---
+
+```{r}
+library(DataExplorer)
+library(cbanalysis)
+library(plyr)
+library(dplyr)
+library(tidyr)
+car<- read.csv("https://raw.githubusercontent.com/xkong100/data-621/master/HW4/insurance_training_data.csv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = c("", "NA"))
+head(car)
+nrow(car)
+ncol(car)
+plot_missing(car)
+count(car,TARGET_FLAG)
+count(car,KIDSDRIV)
+count(car,HOMEKIDS)
+count(car,CLM_FREQ)
+count(car, MVR_PTS)
+
+hist(car$TARGET_FLAG)
+hist(car$TARGET_AMT)
+
+# remove $ and "," 
+library(readr)
+car$INCOME <- parse_number(car$INCOME)
+car$HOME_VAL <- parse_number(car$HOME_VAL)
+car$BLUEBOOK <- parse_number(car$BLUEBOOK)
+car$OLDCLAIM <- parse_number(car$OLDCLAIM)
+
+summary(car)
+
+# replace median for missing values
+
+car[is.na(car$AGE),"AGE"] <- median(na.omit(car$AGE))
+car[is.na(car$INCOME),"INCOME"] <- median(na.omit(car$INCOME))
+car[is.na(car$YOJ),"YOJ"] <- median(na.omit(car$YOJ))
+car[is.na(car$HOME_VAL),"HOME_VAL"] <- median(na.omit(car$HOME_VAL))
+car[is.na(car$CAR_AGE),"CAR_AGE"] <- median(na.omit(car$CAR_AGE))
+car[is.na(car$JOB),"JOB"] <- "Unkonwn"
+
+plot_missing(car)
+
+
+# dummy variables
+car$PARENT1 <- ifelse(car$PARENT1 == "No", 1, 0)
+car$SEX <- ifelse(car$SEX == 'M', 0, 1)
+car$CAR_USE <- ifelse(car$CAR_USE == 'Commercial', 0, 1)
+car$MSTATUS <- ifelse(car$MSTATUS == 'Yes', 0, 1)
+car$RED_CAR <- ifelse(car$RED_CAR == "no", 0, 1)
+car$EDUCATION <- ifelse(car$EDUCATION %in% c('PhD', "Masters"),0, 1)
+car$REVOKED <- ifelse(car$REVOKED == "No", 0, 1)
+car$URBANICITY <- ifelse(car$URBANICITY == "Highly Urban/ Urban", 1, 0)
+car$JOB <- ifelse(car$JOB %in% c('Professional', 'Manager', 'Student', 'Lawyer'), 1, 0)
+car$CAR_TYPE <- ifelse(car$CAR_TYPE %in% c('Panel Truck', "Pickup", "Sports Car"), 1, 0)
+
+car$JOB <- as.numeric(car$JOB)
+
+
+
+
+car <- car[car$CAR_AGE>=0,]
+head(car)
+summary(car)
+plot_histogram(car)
+library(moments)
+library(stargazer)
+s <- stargazer(car,type="text", title="Results", align=TRUE)
+skewness(car)
+cor(car)
+```
+
+```{r}
+# training set (70%), tesing set (30%)
+
+car <- car[,-1]
+car <- car[sample(nrow(car)),]
+top <- round(.70 * nrow(car))
+
+train1 <- car[1:top,]
+test1 <- car[(top+1):nrow(car),]
+```
+
+```{r}
+library(rcompanion)
+
+# age
+plotNormalHistogram(car$AGE, main="age")
+qqnorm(car$AGE, ylab="age")
+qqline(car$AGE,col="red")
+
+# claim frequency
+plotNormalHistogram(car$CLM_FREQ, main="claim frequency")
+qqnorm(car$CLM_FREQ, ylab="claim frequency")
+qqline(car$CLM_FREQ,col="red")
+
+skewness(car$CLM_FREQ)
+
+
+
+T_cube_clm <- (car$CLM_FREQ)^(1/3)
+plotNormalHistogram(T_cube_clm , main="cubic root claim frequency")
+qqnorm(T_cube_clm , ylab="cubic root claim frequency")
+qqline(T_cube_clm ,col="red")
+skewness(T_cube_clm)
+
+
+# MVR_PTS(points)
+
+plotNormalHistogram(car$MVR_PTS, main="points")
+qqnorm(car$MVR_PTS, ylab="points")
+qqline(car$MVR_PTS,col="red")
+
+skewness(car$MVR_PTS)
+
+T_sqrt_pts<- sqrt(car$MVR_PTS)
+plotNormalHistogram(T_sqrt_pts, main="square root of Points")
+qqnorm(T_sqrt_pts, ylab="square root of Points")
+qqline(T_sqrt_pts,col="red")
+skewness(T_sqrt_pts)
+
+T_cube_pts<- (car$MVR_PTS)^(1/3)
+plotNormalHistogram(T_cube_pts, main="cube root of Points")
+qqnorm(T_cube_pts, ylab="cube root of Points")
+qqline(T_cube_pts,col="blue")
+skewness(T_cube_pts)
+
+# Income
+plotNormalHistogram(car$INCOME, main="Income")
+qqnorm(car$INCOME, ylab="age")
+qqline(car$INCOME,col="red")
+
+T_sqrt_income<- sqrt(car$INCOME)
+plotNormalHistogram(T_sqrt_income, main="square root of income")
+qqnorm(T_sqrt_income, ylab="square root of income")
+qqline(T_sqrt_income,col="blue")
+skewness(T_sqrt_income)
+
+T_cube_income<- (car$INCOME)^(1/3)
+plotNormalHistogram(T_cube_income, main="cubic root of income")
+qqnorm(T_cube_income, ylab="square root of income")
+qqline(T_cube_income,col="yellow")
+skewness(T_cube_income)
+
+
+
+
+```
+
+```{r}
+car1 <- car %>% dplyr ::select(-TARGET_AMT,-JOB)
+
+# target_flag
+m1 <-glm(TARGET_FLAG~. , family= "binomial", data=car1)
+
+summary(m1)
+
+m2 <- glm(TARGET_FLAG~KIDSDRIV + HOMEKIDS + YOJ  + PARENT1  + MSTATUS + SEX + EDUCATION + JOB + TRAVTIME + CAR_USE  + TIF + CAR_TYPE + RED_CAR  + CLM_FREQ + REVOKED + MVR_PTS + CAR_AGE + URBANICITY,data = car, family=binomial(link ='probit'))
+summary(m2)
+
+
+trans_car <- car %>% mutate(T_cube_clm=T_cube_clm,T_sqrt_income=T_sqrt_income) %>% dplyr ::select(-CLM_FREQ,-INCOME)
+
+m3 <- glm(TARGET_FLAG~.-TARGET_AMT, family= "binomial", data=trans_car)
+summary(m3)
+
+
+library(lmtest)
+lrtest(m1, m2, m3)
+
+library(pscl)
+pR2(m1)
+pR2(m2)
+pR2(m3)
+
+```
+
+```{r}
+m4 <- lm(TARGET_AMT~ .-TARGET_FLAG, data=car)
+summary(m4)
+m5 <- update(m4, .~. -AGE-HOMEKIDS-YOJ-INCOME-SEX-EDUCATION-BLUEBOOK-RED_CAR-OLDCLAIM-CLM_FREQ)
+summary(m5)
+m6 <- lm(TARGET_AMT~. -TARGET_FLAG, data=trans_car)
+summary(m6)
+m7 <- update(m6, .~. -AGE-HOMEKIDS-YOJ-T_sqrt_income-SEX-EDUCATION-BLUEBOOK-RED_CAR-OLDCLAIM-T_cube_clm)
+summary(m7)
+```
+
+```{r}
+# select models 
+test_result1 <- predict(m1, newdata=car,type='response')
+df <- bind_cols(car, data.frame(scored_target=test_result1))%>% mutate(scored_target=ifelse(scored_target>0.5, 1, 0)) 
+
+library(caret)
+cm1 <- confusionMatrix(as.factor(df$scored_target), as.factor(df$TARGET_FLAG), positive="1", mode="everything") 
+head(cm1)
+
+library(pROC)
+curve <- roc(df$TARGET_FLAG, df$scored_target)
+plot(curve, main="pROC")
+
+
+test_result2 <- predict(m3, newdata=trans_car,type='response')
+df1 <- bind_cols(car, data.frame(scored_target=test_result2))%>% mutate(scored_target=ifelse(scored_target>0.5, 1, 0)) 
+
+library(caret)
+cm2 <- confusionMatrix(as.factor(df1$scored_target), as.factor(df1$TARGET_FLAG), positive="1", mode="everything")
+head(cm2)
+
+library(pROC)
+curve1 <- roc(df1$TARGET_FLAG, df1$scored_target)
+plot(curve1, main="pROC")
+```
+
+```{r}
+# Prediction for Test Data
+car_eval <- read.csv("https://raw.githubusercontent.com/xkong100/data-621/master/HW4/insurance-evaluation-data.csv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = c("", "NA"))
+head(car_eval)
+summary(car_eval)
+
+car_eval$INCOME <- parse_number(car_eval$INCOME)
+car_eval$HOME_VAL <- parse_number(car_eval$HOME_VAL)
+car_eval$BLUEBOOK <- parse_number(car_eval$BLUEBOOK)
+car_eval$OLDCLAIM <- parse_number(car_eval$OLDCLAIM)
+
+car_eval$PARENT1 <- ifelse(car_eval$PARENT1 == "No", 1, 0)
+car_eval$SEX <- ifelse(car_eval$SEX == 'M', 0, 1)
+car_eval$CAR_USE <- ifelse(car_eval$CAR_USE == 'Commercial', 0, 1)
+car_eval$MSTATUS <- ifelse(car_eval$MSTATUS == 'Yes', 0, 1)
+car_eval$RED_CAR <- ifelse(car_eval$RED_CAR == "no", 0, 1)
+car_eval$EDUCATION <- ifelse(car_eval$EDUCATION %in% c('PhD', "Masters"),0, 1)
+car_eval$REVOKED <- ifelse(car_eval$REVOKED == "No", 0, 1)
+car_eval$URBANICITY <- ifelse(car_eval$URBANICITY == "Highly Urban/ Urban", 1, 0)
+car_eval$JOB <- ifelse(car_eval$JOB %in% c('Professional', 'Manager', 'Student', 'Lawyer'), 1, 0)
+car_eval$CAR_TYPE <- ifelse(car_eval$CAR_TYPE %in% c('Panel Truck', "Pickup", "Sports Car"), 1, 0)
+
+car_eval$JOB <- as.numeric(car_eval$JOB)
+
+car_eval[is.na(car_eval$AGE),"AGE"] <- median(na.omit(car_eval$AGE))
+car_eval[is.na(car_eval$INCOME),"INCOME"] <- median(na.omit(car_eval$INCOME))
+car_eval[is.na(car_eval$YOJ),"YOJ"] <- median(na.omit(car_eval$YOJ))
+car_eval[is.na(car_eval$HOME_VAL),"HOME_VAL"] <- median(na.omit(car_eval$HOME_VAL))
+car_eval[is.na(car_eval$CAR_AGE),"CAR_AGE"] <- median(na.omit(car_eval$CAR_AGE))
+car_eval[is.na(car_eval$JOB),"JOB"] <- " "
+
+
+car_eval <- car_eval %>%  dplyr ::select(-JOB)
+
+
+head (car_eval)
+
+test_prediction <- predict(m1, newdata= car_eval, type="response")
+
+car_eval<-bind_cols(car_eval, data.frame(scored_target= test_prediction)) %>% mutate (scored_target= ifelse(scored_target > 0.5, 1, 0))
+
+
+head(car_eval)
+
+s <- stargazer(car_eval,type="text", title="Results", align=TRUE)
+hist(car_eval$scored_target)
+count(car_eval,scored_target)
+```
