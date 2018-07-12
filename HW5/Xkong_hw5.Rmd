@@ -1,0 +1,137 @@
+---
+title: "HW 5"
+author: "Vivian Kong"
+date: "7/10/2018"
+output: html_document
+---
+
+```{r}
+library(tidyr)
+library(plyr)
+library(dplyr)
+
+library(DataExplorer)
+library(cbanalysis)
+library(gvlma)
+library(stargazer)
+library(knitr)
+wine <- read.csv("https://raw.githubusercontent.com/xkong100/data-621/master/HW5/wine-training-data.csv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = c("", "NA"))
+head(wine)
+nrow(wine)
+ncol(wine)
+plot_missing(wine)
+
+s<- stargazer(wine,type="text", title="Results", align=TRUE)
+
+plot_histogram(wine)
+
+wine <- wine %>%  dplyr ::select(-INDEX)
+
+cor(wine)
+
+wine[is.na(wine$pH),"pH"] <- mean(na.omit(wine$pH))
+wine[is.na(wine$ResidualSugar),"ResidualSugar"] <- mean(na.omit(wine$ResidualSugar))
+wine[is.na(wine$Chlorides),"Chlorides"] <- mean(na.omit(wine$Chlorides))
+wine[is.na(wine$FreeSulfurDioxide),"FreeSulfurDioxide"] <- mean(na.omit(wine$FreeSulfurDioxide))
+wine[is.na(wine$Alcohol),"Alcohol"] <- mean(na.omit(wine$Alcohol))
+wine[is.na(wine$TotalSulfurDioxide),"TotalSulfurDioxide"] <- mean(na.omit(wine$TotalSulfurDioxide))
+wine[is.na(wine$Sulphates),"Sulphates"] <- mean(na.omit(wine$Sulphates))
+library(imputeTS)
+wine$STARS<-round(na.random(wine$STARS), digits = 0)
+
+wine$STARS
+
+
+
+head (wine)
+s<- stargazer(wine,type="text", title="Results", align=TRUE)
+plot_histogram(wine)
+cor(wine)
+
+library(moments)
+
+skewness(wine)
+
+
+
+attach(wine)
+
+LA <- cut(LabelAppeal,3, include.lowest = TRUE, labels=c("negative", "Neutual", "positive"))
+table(LA)
+```
+
+```{r}
+T_sqrt_FA <- sqrt(wine$FixedAcidity)
+skewness(T_sqrt_FA)
+
+T_cubic_Ch<- (wine$Chlorides)^(1/3)
+skewness(T_cubic_Ch)
+
+T_cubic_TSD <- (wine$TotalSulfurDioxide)^(1/3)
+skewness(T_cubic_TSD)
+
+T_cubic_S <- (wine$Sulphates)^(1/3)
+skewness(T_cubic_S)
+
+
+
+T_log_AI <- log(wine$AcidIndex)
+skewness(T_log_AI)
+
+wine1 <- wine %>% mutate(AcidIndex=T_log_AI,Sulphates=T_cubic_S,TotalSulfurDioxide=T_cubic_TSD, Chlorides= T_cubic_Ch,FixedAcidity= T_sqrt_FA)
+skewness(wine)
+```
+```{r}
+summary(m1<-lm(TARGET~. , family="linear", data=wine))
+summary(m2 <-lm(formula = TARGET ~ VolatileAcidity + Chlorides + FreeSulfurDioxide+ TotalSulfurDioxide + pH + Sulphates + Alcohol + LabelAppeal + AcidIndex + STARS, 
+    data = wine))
+# Poisson 
+summary(m3 <- glm(TARGET~. , family="poisson", data=wine))
+summary(m4 <- glm(TARGET ~ VolatileAcidity + TotalSulfurDioxide + LabelAppeal + AcidIndex + STARS, family = "poisson"),data=wine)
+
+# Negative Binomomial Regression
+library(MASS)
+summary(m5 <-glm(TARGET~VolatileAcidity + TotalSulfurDioxide + pH + Sulphates + LabelAppeal + AcidIndex + STARS ,family=negative.binomial(1), data=wine))
+
+
+summary(m6 <-glm.nb(formula=TARGET ~ VolatileAcidity  + TotalSulfurDioxide + pH + Sulphates + LabelAppeal + AcidIndex + STARS, 
+    data = wine))
+
+```
+
+```{r}
+library(lmtest)
+lrtest(m1, m2, m3,m4,m5,m6)
+
+
+```
+
+```{r}
+wine_eval <- read.csv("https://raw.githubusercontent.com/xkong100/data-621/master/HW5/wine-evaluation-data.csv", stringsAsFactors = FALSE, check.names = FALSE, na.strings = c("", "NA"))
+head(wine_eval)
+summary(wine_eval)
+
+plot_missing(wine_eval)
+
+wine_eval <- wine_eval %>% dplyr ::select(-IN)
+
+
+wine_eval[is.na(wine_eval$pH),"pH"] <- mean(na.omit(wine_eval$pH))
+wine_eval[is.na(wine_eval$ResidualSugar),"ResidualSugar"] <- mean(na.omit(wine_eval$ResidualSugar))
+wine_eval[is.na(wine_eval$Chlorides),"Chlorides"] <- mean(na.omit(wine_eval$Chlorides))
+wine_eval[is.na(wine_eval$FreeSulfurDioxide),"FreeSulfurDioxide"] <- mean(na.omit(wine_eval$FreeSulfurDioxide))
+wine_eval[is.na(wine_eval$Alcohol),"Alcohol"] <- mean(na.omit(wine_eval$Alcohol))
+wine_eval[is.na(wine_eval$TotalSulfurDioxide),"TotalSulfurDioxide"] <- mean(na.omit(wine_eval$TotalSulfurDioxide))
+wine_eval[is.na(wine_eval$Sulphates),"Sulphates"] <- mean(na.omit(wine_eval$Sulphates))
+library(imputeTS)
+wine_eval$STARS<-round(na.random(wine_eval$STARS), digits = 0)
+head(wine_eval)
+
+wine_eval$TARGET <- round(predict(m5, newdata= wine_eval, type="response"), digits = 0)
+
+summary(wine_eval$TARGET)
+hist(wine_eval$TARGET)
+
+head(wine_eval)
+
+```
